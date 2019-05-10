@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "dockercmd": {
+      "commandName": "Project",
+      "commandLineArgs": "czsh",
+      "environmentVariables": {
+        "DOCKER_REPO_PREFIX": "cerebrate"
+      }
+    }
+  }
+}
