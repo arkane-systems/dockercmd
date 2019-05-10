@@ -2,7 +2,7 @@
   "profiles": {
     "dockercmd": {
       "commandName": "Project",
-      "commandLineArgs": "ponysay",
+      "commandLineArgs": "ponysay -q",
       "environmentVariables": {
         "DOCKER_REPO_PREFIX": "cerebrate"
       }

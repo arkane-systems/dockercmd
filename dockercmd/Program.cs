@@ -15,14 +15,14 @@
 
 using System ;
 using System.Collections.Generic ;
-using System.ComponentModel ;
 using System.Diagnostics ;
 using System.IO ;
 using System.Linq ;
 using System.Reflection ;
-using System.Runtime.CompilerServices ;
 using System.Runtime.InteropServices ;
 using System.Text ;
+
+using JetBrains.Annotations ;
 
 using Newtonsoft.Json ;
 
@@ -32,22 +32,28 @@ namespace ArkaneSystems.DockerCmd
 {
     internal static class Program
     {
+        /// <summary>
+        ///     Platform-specific name of the Docker executable.
+        /// </summary>
         private static string DockerExecutable { get ; set ; }
 
-        public static int Main (string[] args)
+        /// <summary>
+        ///     Entry point.
+        /// </summary>
+        /// <param name="args">Command to execute.</param>
+        /// <returns>Return code of the container; alternatively, error code from dockercmd (> 128).</returns>
+        public static int Main ([NotNull] string[] args)
         {
             try
             {
-                if (RuntimeInformation.IsOSPlatform (OSPlatform.Windows))
-                    Program.DockerExecutable = "docker.exe" ;
-                else
-                    Program.DockerExecutable = "docker" ;
+                // Set Docker executable name by platform.
+                Program.DockerExecutable = RuntimeInformation.IsOSPlatform (OSPlatform.Windows) ? "docker.exe" : "docker" ;
 
                 // Check we have enough parameters.
                 if (args.Length < 1)
                 {
                     Console.WriteLine (@"error: insufficient arguments specified") ;
-                    return 1 ;
+                    return 129 ;
                 }
 
                 // Display help if requested.
@@ -67,28 +73,14 @@ namespace ArkaneSystems.DockerCmd
                 }
 
                 // Split command line.
-                string   command   = args[0] ;
+                string   cdFile    = Program.GetCommandDefinitionFile (args[0]) ;
                 string[] arguments = args.Skip (1).ToArray () ;
-
-#if DEBUG
-                Console.WriteLine ($"command: {command}; args: {arguments.Length}") ;
-#endif
-
-                // Get docker command config file directory.
-                string commandPath =
-                    Path.Combine (Environment.GetFolderPath (Environment.SpecialFolder.UserProfile), ".dockercmd") ;
-
-#if DEBUG
-                Console.WriteLine ($"Found command path: {commandPath}") ;
-#endif
-
-                string cdFile = Path.Combine (commandPath, $"{command}.json") ;
 
                 // Look for config file.
                 if (!File.Exists (cdFile))
                 {
                     Console.WriteLine ("error: could not find command definition file") ;
-                    return 2 ;
+                    return 130 ;
                 }
 
                 // Read command definition.
@@ -101,129 +93,112 @@ namespace ArkaneSystems.DockerCmd
                 catch (JsonSerializationException ex)
                 {
                     Console.WriteLine ($"error: malformed command definition file\r\ndetail: {ex.Message}") ;
-                    return 3 ;
+                    return 131 ;
                 }
 
-                // Adjust command definition as required.
+
+                // Check that we have an image.
                 if (string.IsNullOrWhiteSpace (cmd.Image))
                 {
                     Console.WriteLine ("error: no image specified in command definition file") ;
-                    return 3 ;
+                    return 131 ;
                 }
 
-                // Fix default repo if environment variable set.
-                if (!cmd.Image.Contains ('/'))
-                {
-                    // Get default docker image prefix.
-                    string imagePrefix = Environment.GetEnvironmentVariable ("DOCKER_REPO_PREFIX") ;
-
-                    if (!string.IsNullOrWhiteSpace (imagePrefix))
-                        cmd.Image = string.Concat (imagePrefix, "/", cmd.Image) ;
-                }
-
-                if (string.IsNullOrWhiteSpace (cmd.Name))
-                {
-                    string imageBase = cmd.Image.Split ('/').Last () ;
-                    cmd.Name = string.Concat (Environment.UserName, "_command_", imageBase) ;
-                }
-                else
-                {
-                    cmd.Name = string.Concat (Environment.UserName, "_", cmd.Name) ;
-                }
-
-#if DEBUG
-                Console.WriteLine ($"selected image: {cmd.Image}") ;
-                Console.WriteLine ($"container name: {cmd.Name}") ;
-                Console.WriteLine ($"interactive: {cmd.Interactive}") ;
-                Console.WriteLine ($"persistContainer: {cmd.PersistContainer}") ;
-#endif
+                // Adjust command definition as required.
+                Program.PatchCommandDefinition (cmd) ;
 
                 // Check if the requested image is present.
                 if (!Program.CheckForImage (cmd.Image))
                 {
                     Console.WriteLine ("command image is not present, attempting pull...") ;
 
-                    var exitCode = Program.PullImage (cmd.Image) ;
+                    int exitCode = Program.PullImage (cmd.Image) ;
                     if (exitCode != 0)
                     {
                         Console.WriteLine ("error: unable to pull command image") ;
-                        return exitCode ;
+                        return 132 ;
                     }
                 }
 
                 // Assemble docker run command parts.
-                var parts = new List <String> (8) ;
+                string cmdargs = Program.GetDockerRunParameters (cmd, arguments) ;
 
-                parts.Add ($"--name {cmd.Name}");
-                parts.Add (cmd.Interactive ? "-it" : "-d --init") ;
 
-                if (!cmd.PersistContainer)
-                    parts.Add ("--rm") ;
-
-                if (cmd.PublishTcpPorts.Length > 0)
-                    foreach (int p in cmd.PublishTcpPorts)
-                        parts.Add ($"-p {p}:{p}") ;
-
-                if (!string.IsNullOrWhiteSpace (cmd.MountCwd))
-                {
-                    string cwd = Environment.CurrentDirectory ;
-
-                    if (RuntimeInformation.IsOSPlatform (OSPlatform.Windows))
-                        cwd = cwd.Replace ('\\', '/') ;
-
-                    parts.Add ($"-v \"{cwd}:{cmd.MountCwd}\"") ;
-                }
-
-                if (cmd.ShareHostPids)
-                    parts.Add ("--pid host") ;
-
-                StringBuilder cmdargsb = new StringBuilder (256) ;
-
-                foreach (var p in parts)
-                {
-                    cmdargsb.Append (p) ;
-                    cmdargsb.Append (" ") ;
-                }
-
-                cmdargsb.Append (cmd.Image) ;
-                cmdargsb.Append (" ") ;
-
-                foreach (var a in arguments)
-                {
-                    cmdargsb.Append (a) ;
-                    cmdargsb.Append (" ") ;
-                }
-
-                var cmdargs = cmdargsb.ToString ().Trim () ;
-
-#if DEBUG
-                Console.WriteLine ($"docker run arguments: {cmdargs}");
-#endif
-
-                var runExitCode = Program.RunContainer (cmdargs) ;
+                int runExitCode = Program.RunContainer (cmdargs) ;
                 if (runExitCode != 0)
-                {
                     return runExitCode ;
-                }
 
                 // Declare success.
                 return 0 ;
             }
+
+            // Unanticipated error handler.
             catch (Exception e)
             {
                 Console.WriteLine ($"unanticipated error: {e.Message}") ;
-                return 128 ;
+                return 255 ;
             }
         }
 
+        /// <summary>
+        ///     Locate the command definition file corresponding to a given command.
+        /// </summary>
+        /// <param name="command">Command.</param>
+        /// <returns>Path to the command definition file, whether or not it exists.</returns>
+        private static string GetCommandDefinitionFile (string command)
+        {
+            // Get docker command config file directory.
+            string commandPath =
+                Path.Combine (Environment.GetFolderPath (Environment.SpecialFolder.UserProfile), ".dockercmd") ;
+
+            string cdFile = Path.Combine (commandPath, $"{command}.json") ;
+            return cdFile ;
+        }
+
+        /// <summary>
+        ///     Patch the command definition before running it.
+        /// </summary>
+        /// <param name="cmd">The command definition to patch.</param>
+        /// <remarks>
+        ///     Fixes up image name with the default, if not explicitly specified and default set.
+        ///     Sets name of container to default if not set; whether set or not, applies pid as suffix.
+        /// </remarks>
+        private static void PatchCommandDefinition (CommandDefinition cmd)
+        {
+            // Fix default repo if environment variable set.
+            if (!cmd.Image.Contains ('/'))
+            {
+                // Get default docker image prefix.
+                string imagePrefix = Environment.GetEnvironmentVariable ("DOCKER_REPO_PREFIX") ;
+
+                if (!string.IsNullOrWhiteSpace (imagePrefix))
+                    cmd.Image = string.Concat (imagePrefix, "/", cmd.Image) ;
+            }
+
+            if (string.IsNullOrWhiteSpace (cmd.Name))
+            {
+                string imageBase = cmd.Image.Split ('/').Last () ;
+                cmd.Name = string.Concat ("command_", imageBase, "_", Process.GetCurrentProcess ().Id.ToString ()) ;
+            }
+            else
+            {
+                cmd.Name = string.Concat (cmd.Name, "_", Process.GetCurrentProcess ().Id.ToString ()) ;
+            }
+        }
+
+        /// <summary>
+        ///     Check if the given Docker image exists locally.
+        /// </summary>
+        /// <param name="image">The image to check for.</param>
+        /// <returns>True if the image exists; false otherwise.</returns>
         private static bool CheckForImage (string image)
         {
             Process dp = Process.Start (new ProcessStartInfo
                                         {
-                                            FileName = "docker.exe",
-                                            Arguments = string.Concat ("images --format {{.Repository}} ", image),
+                                            FileName               = "docker.exe",
+                                            Arguments              = string.Concat ("images --format {{.Repository}} ", image),
                                             RedirectStandardOutput = true,
-                                            CreateNoWindow = true
+                                            CreateNoWindow         = true
                                         }) ;
 
             string[] output = dp.StandardOutput.ReadToEnd ().Split ("\n") ;
@@ -234,31 +209,101 @@ namespace ArkaneSystems.DockerCmd
             return output.Contains (image) ;
         }
 
+        /// <summary>
+        ///     Attempt to pull the specified Docker image.
+        /// </summary>
+        /// <param name="image">The image to pull.</param>
+        /// <returns>Exit code from the "docker pull" command.</returns>
+        /// <remarks>Will use existing credentials, if any.</remarks>
         private static int PullImage (string image)
         {
             Process dp = Process.Start (new ProcessStartInfo
                                         {
-                                            FileName = Program.DockerExecutable,
-                                            Arguments = string.Concat ("pull ", image)
+                                            FileName = Program.DockerExecutable, Arguments = string.Concat ("pull ", image)
                                         }) ;
 
-            dp.WaitForExit ();
-            var exitCode = dp.ExitCode ;
-            dp.Dispose ();
+            dp.WaitForExit () ;
+            int exitCode = dp.ExitCode ;
+            dp.Dispose () ;
 
             return exitCode ;
         }
 
+        /// <summary>
+        ///     Construct the appropriate arguments to "docker run", based on the command definition.
+        /// </summary>
+        /// <param name="cmd">The command definition to use.</param>
+        /// <param name="arguments">Additional arguments supplied to the command.</param>
+        /// <returns>A parameter string to be supplied to "docker run".</returns>
+        private static string GetDockerRunParameters ([NotNull] CommandDefinition cmd, [NotNull] string[] arguments)
+        {
+            var parts = new List <string> (8) ;
+
+            // name
+            parts.Add ($"--name {cmd.Name}") ;
+
+            // interactivity
+            parts.Add (cmd.Interactive ? "-it" : "-d --init") ;
+
+            // persistence
+            if (!cmd.PersistContainer)
+                parts.Add ("--rm") ;
+
+            // port mapping
+            if (cmd.PublishTcpPorts.Length > 0)
+                foreach (int p in cmd.PublishTcpPorts)
+                    parts.Add ($"-p {p}:{p}") ;
+
+            // volumes
+            if (!string.IsNullOrWhiteSpace (cmd.MountCwd))
+            {
+                string cwd = Environment.CurrentDirectory ;
+
+                if (RuntimeInformation.IsOSPlatform (OSPlatform.Windows))
+                    cwd = cwd.Replace ('\\', '/') ;
+
+                parts.Add ($"-v \"{cwd}:{cmd.MountCwd}\"") ;
+            }
+
+            // pids
+            if (cmd.ShareHostPids)
+                parts.Add ("--pid host") ;
+
+            // Now build it.
+            var buffer = new StringBuilder (256) ;
+
+            foreach (string p in parts)
+            {
+                buffer.Append (p) ;
+                buffer.Append (" ") ;
+            }
+
+            buffer.Append (cmd.Image) ;
+            buffer.Append (" ") ;
+
+            foreach (string a in arguments)
+            {
+                buffer.Append (a) ;
+                buffer.Append (" ") ;
+            }
+
+            return buffer.ToString ().Trim () ;
+        }
+
+        /// <summary>
+        ///     Runs a container given a "docker run" argument string.
+        /// </summary>
+        /// <param name="cmdstring">An argument string, as returned from <see cref="GetDockerRunParameters"/>.</param>
+        /// <returns>Return code of the container.</returns>
         private static int RunContainer (string cmdstring)
         {
             Process dp = Process.Start (new ProcessStartInfo
                                         {
-                                            FileName = Program.DockerExecutable,
-                                            Arguments = string.Concat ("run ", cmdstring)
+                                            FileName = Program.DockerExecutable, Arguments = string.Concat ("run ", cmdstring)
                                         }) ;
 
             dp.WaitForExit () ;
-            var exitCode = dp.ExitCode ;
+            int exitCode = dp.ExitCode ;
             dp.Dispose () ;
 
             return exitCode ;
