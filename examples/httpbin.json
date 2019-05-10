@@ -1,0 +1,5 @@
+{
+    "image" : "httpbin",
+    "interactive" : false,
+    "publishTcpPorts" : [ 80 ]
+}
