@@ -10,11 +10,26 @@ Loosely inspired by Jessie Frazelle's blog post ( https://blog.jessfraz.com/post
 
 Since `dockercmd` is a relatively long command, I suggest adding a shorter alias for it; `dodo`, by analogy to `sudo`, or even simply `d`.
 
+[DOCKER_REPO_PREFIX variable]
+
 ## Configuration
+
+```
+{
+    "image" : "czsh",
+    "name" : "czsh-cont",
+    "interactive" : true,
+    "persistContainer" : false
+}
+```
 
 [TODO]
 
 ## Invocation
+
+[TODO]
+
+### Return codes
 
 [TODO]
 

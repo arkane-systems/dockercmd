@@ -15,10 +15,13 @@
 
 using System ;
 using System.Collections.Generic ;
+using System.ComponentModel ;
 using System.Diagnostics ;
 using System.IO ;
 using System.Linq ;
 using System.Reflection ;
+using System.Runtime.CompilerServices ;
+using System.Runtime.InteropServices ;
 using System.Text ;
 
 using Newtonsoft.Json ;
@@ -29,10 +32,17 @@ namespace ArkaneSystems.DockerCmd
 {
     internal static class Program
     {
+        private static string DockerExecutable { get ; set ; }
+
         public static int Main (string[] args)
         {
             try
             {
+                if (RuntimeInformation.IsOSPlatform (OSPlatform.Windows))
+                    Program.DockerExecutable = "docker.exe" ;
+                else
+                    Program.DockerExecutable = "docker" ;
+
                 // Check we have enough parameters.
                 if (args.Length < 1)
                 {
@@ -150,6 +160,23 @@ namespace ArkaneSystems.DockerCmd
                 if (!cmd.PersistContainer)
                     parts.Add ("--rm") ;
 
+                if (cmd.PublishTcpPorts.Length > 0)
+                    foreach (int p in cmd.PublishTcpPorts)
+                        parts.Add ($"-p {p}:{p}") ;
+
+                if (!string.IsNullOrWhiteSpace (cmd.MountCwd))
+                {
+                    string cwd = Environment.CurrentDirectory ;
+
+                    if (RuntimeInformation.IsOSPlatform (OSPlatform.Windows))
+                        cwd = cwd.Replace ('\\', '/') ;
+
+                    parts.Add ($"-v \"{cwd}:{cmd.MountCwd}\"") ;
+                }
+
+                if (cmd.ShareHostPids)
+                    parts.Add ("--pid host") ;
+
                 StringBuilder cmdargsb = new StringBuilder (256) ;
 
                 foreach (var p in parts)
@@ -211,7 +238,7 @@ namespace ArkaneSystems.DockerCmd
         {
             Process dp = Process.Start (new ProcessStartInfo
                                         {
-                                            FileName = "docker.exe",
+                                            FileName = Program.DockerExecutable,
                                             Arguments = string.Concat ("pull ", image)
                                         }) ;
 
@@ -226,7 +253,7 @@ namespace ArkaneSystems.DockerCmd
         {
             Process dp = Process.Start (new ProcessStartInfo
                                         {
-                                            FileName = "docker.exe",
+                                            FileName = Program.DockerExecutable,
                                             Arguments = string.Concat ("run ", cmdstring)
                                         }) ;
 

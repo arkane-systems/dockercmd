@@ -12,6 +12,12 @@ namespace ArkaneSystems.DockerCmd
 
         public bool Interactive { get ; set ; } = true ;
 
+        public string MountCwd { get ; set ; }
+
         public bool PersistContainer { get ; set ; } = false ;
+
+        public int[] PublishTcpPorts { get ; set ; } = new int[0] ;
+
+        public bool ShareHostPids { get ; set ; } = false ;
     }
 }
