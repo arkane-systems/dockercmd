@@ -14,7 +14,7 @@ You may also wish to set the `DOCKER_REPO_PREFIX` environment variable. This app
 
 ## Configuration
 
-`dockercmd` is configured by JSON-formatted command definition files, located in the `.dockercmd' subdirectory of, on Windows, your user profile (i.e., `C:\Users\username`) or on Linux your home directory. These files are named after the command _as you type it_ , which is does not need to be the same as the image name, followed by .json. For example, a configuration file for the `czsh` command would be named `czsh.json`, and might read as follows:
+`dockercmd` is configured by JSON-formatted command definition files, located in the `.dockercmd` subdirectory of, on Windows, your user profile (i.e., `C:\Users\username`) or on Linux your home directory. These files are named after the command _as you type it_ , which is does not need to be the same as the image name, followed by .json. For example, a configuration file for the `czsh` command would be named `czsh.json`, and might read as follows:
 
 ```
 {
