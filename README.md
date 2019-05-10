@@ -40,6 +40,8 @@ The options that can be included in the configuration file are as follows:
   * **mountCwd** - an optional volume mount point in the container on which the current working directory will be mounted when the command is executed.
   * **shareHostPids** - setting this parameter to true causes the container to share the host's pid namespace, as if `--pid host` were specified to `docker run`.
 
+Example command definition files are available in the `examples` directory of this repository, although since they reference my images, they won't work for you unless you set `DOCKER_REPO_PREFIX` to `cerebrate`, or edit the image names to include `cerebrate/`.
+
 ## Invocation
 
 `dockercmd <command> <arguments>`
