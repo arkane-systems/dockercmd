@@ -5,6 +5,7 @@
     <TargetFramework>netcoreapp2.2</TargetFramework>
     <RootNamespace>ArkaneSystems.DockerCmd</RootNamespace>
     <Version>0.2</Version>
+    <AssemblyName>dodo</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

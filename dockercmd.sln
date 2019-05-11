@@ -3,7 +3,26 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28803.202
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dockercmd", "dockercmd\dockercmd.csproj", "{E7136962-649E-472C-9BF0-9F3494941F9D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dockercmd", "dockercmd\dockercmd.csproj", "{E7136962-649E-472C-9BF0-9F3494941F9D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9F9C2E99-3EAD-4247-B231-DFBAD4A0EFA0}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{1E3F7F83-7A64-417A-A610-7DC98177E61D}"
+	ProjectSection(SolutionItems) = preProject
+		examples\czsh.json = examples\czsh.json
+		examples\emacs.json = examples\emacs.json
+		examples\htop.json = examples\htop.json
+		examples\httpbin.json = examples\httpbin.json
+		examples\httpie.json = examples\httpie.json
+		examples\lynx.json = examples\lynx.json
+		examples\netcat.json = examples\netcat.json
+		examples\nmap.json = examples\nmap.json
+		examples\ponysay.json = examples\ponysay.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,6 +37,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1E3F7F83-7A64-417A-A610-7DC98177E61D} = {9F9C2E99-3EAD-4247-B231-DFBAD4A0EFA0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0AED91A2-DE30-4792-8E74-D38F28372147}
