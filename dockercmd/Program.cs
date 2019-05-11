@@ -121,10 +121,10 @@ namespace ArkaneSystems.DockerCmd
                 }
 
                 // Assemble docker run command parts.
-                string cmdargs = Program.GetDockerRunParameters (cmd, arguments) ;
+                string cmdArguments = Program.GetDockerRunParameters (cmd, arguments) ;
 
 
-                int runExitCode = Program.RunContainer (cmdargs) ;
+                int runExitCode = Program.RunContainer (cmdArguments) ;
                 if (runExitCode != 0)
                     return runExitCode ;
 
@@ -163,7 +163,7 @@ namespace ArkaneSystems.DockerCmd
         ///     Fixes up image name with the default, if not explicitly specified and default set.
         ///     Sets name of container to default if not set; whether set or not, applies pid as suffix.
         /// </remarks>
-        private static void PatchCommandDefinition (CommandDefinition cmd)
+        private static void PatchCommandDefinition ([NotNull] CommandDefinition cmd)
         {
             // Fix default repo if environment variable set.
             if (!cmd.Image.Contains ('/'))
@@ -265,7 +265,7 @@ namespace ArkaneSystems.DockerCmd
                 parts.Add ($"-v \"{cwd}:{cmd.MountCwd}\"") ;
             }
 
-            // pids
+            // process IDs
             if (cmd.ShareHostPids)
                 parts.Add ("--pid host") ;
 
@@ -293,13 +293,13 @@ namespace ArkaneSystems.DockerCmd
         /// <summary>
         ///     Runs a container given a "docker run" argument string.
         /// </summary>
-        /// <param name="cmdstring">An argument string, as returned from <see cref="GetDockerRunParameters"/>.</param>
+        /// <param name="cmdString">An argument string, as returned from <see cref="GetDockerRunParameters"/>.</param>
         /// <returns>Return code of the container.</returns>
-        private static int RunContainer (string cmdstring)
+        private static int RunContainer (string cmdString)
         {
             Process dp = Process.Start (new ProcessStartInfo
                                         {
-                                            FileName = Program.DockerExecutable, Arguments = string.Concat ("run ", cmdstring)
+                                            FileName = Program.DockerExecutable, Arguments = string.Concat ("run ", cmdString)
                                         }) ;
 
             dp.WaitForExit () ;
