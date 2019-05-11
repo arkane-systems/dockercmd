@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.2</TargetFramework>
     <RootNamespace>ArkaneSystems.DockerCmd</RootNamespace>
-    <Version>0.1</Version>
+    <Version>0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
